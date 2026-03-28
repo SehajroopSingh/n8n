@@ -1,0 +1,221 @@
+{
+  "name": "Reel Idea Generator (Copy)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger-reel",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger-reel",
+      "name": "Daily Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [100, 500]
+    },
+    {
+      "parameters": {
+        "resource": "table",
+        "operation": "create",
+        "tableName": "ReelIdeas",
+        "columns": {
+          "column": [
+            {"name": "Niche", "type": "string"},
+            {"name": "Idea", "type": "string"},
+            {"name": "Status", "type": "string"},
+            {"name": "CreatedAt", "type": "date"}
+          ]
+        },
+        "options": {"createIfNotExists": true}
+      },
+      "id": "create-table-reel",
+      "name": "Create ReelIdeas Table",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [320, 400]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "niches-id",
+              "name": "niches",
+              "value": ["fitness", "productivity", "cooking", "tech", "travel", "finance"],
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-niches-reel",
+      "name": "Define Niches",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [540, 400]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "niches",
+        "include": "allOtherFields"
+      },
+      "id": "split-niches-reel",
+      "name": "Split Niches",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [760, 400]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "complete",
+        "model": "gpt-4o-mini",
+        "prompt": {
+          "messages": {
+            "values": [
+              {
+                "content": "={{ 'Generate 5 short-form video reel ideas for a ' + $json.niches + ' niche social media account. Each idea should be 1-2 sentences, visually descriptive, and optimized for AI-generated video (e.g. DALL-E, Runway, Sora). Return ONLY a JSON array of strings, e.g. [\"idea1\", \"idea2\"]' }}"
+              }
+            ]
+          }
+        },
+        "options": {"maxTokens": 1000}
+      },
+      "id": "openai-ideas-reel",
+      "name": "Generate Ideas",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.1,
+      "position": [980, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all();\nconst output = [];\nfor (const item of items) {\n  const niche = item.json.niches || 'general';\n  let ideas = [];\n  try {\n    const text = (item.json.message?.content || item.json.text || JSON.stringify(item.json)).trim();\n    const jsonMatch = text.match(/\\[([\\s\\S]*)\\]/);\n    if (jsonMatch) {\n      ideas = JSON.parse('[' + jsonMatch[1].replace(/\\\\\"/g, '\"') + ']');\n    }\n  } catch (e) {\n    ideas = [text];\n  }\n  for (const idea of ideas) {\n    output.push({ json: { niche, idea: String(idea).trim(), status: 'pending', created_at: new Date().toISOString() } });\n  }\n}\nreturn output;"
+      },
+      "id": "parse-ideas-reel",
+      "name": "Parse & Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {"mode": "name", "value": "ReelIdeas"},
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Niche": "={{ $json.niche }}",
+            "Idea": "={{ $json.idea }}",
+            "Status": "={{ $json.status }}",
+            "CreatedAt": "={{ $json.created_at }}"
+          }
+        }
+      },
+      "id": "save-ideas-reel",
+      "name": "Save to Data Table",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [1420, 400]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Create ReelIdeas Table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily Trigger": {
+      "main": [
+        [
+          {
+            "node": "Create ReelIdeas Table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create ReelIdeas Table": {
+      "main": [
+        [
+          {
+            "node": "Define Niches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Define Niches": {
+      "main": [
+        [
+          {
+            "node": "Split Niches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Niches": {
+      "main": [
+        [
+          {
+            "node": "Generate Ideas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Ideas": {
+      "main": [
+        [
+          {
+            "node": "Parse & Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Format": {
+      "main": [
+        [
+          {
+            "node": "Save to Data Table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {},
+  "active": false
+}

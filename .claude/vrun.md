@@ -1,0 +1,1 @@
+export PATH="/Users/sehaj/.nvm/versions/node/v22.22.0/bin:$PATH" && node scripts/os-normalize.mjs --dir packages/cli/bin n8n

@@ -1,0 +1,172 @@
+{
+	"name": "Webhook → Slack & Google Sheets",
+	"nodes": [
+		{
+			"parameters": {
+				"path": "incoming-data",
+				"responseMode": "responseNode",
+				"options": {}
+			},
+			"id": "webhook-node",
+			"name": "Webhook",
+			"type": "n8n-nodes-base.webhook",
+			"typeVersion": 2,
+			"position": [240, 300],
+			"webhookId": "webhook-incoming-data"
+		},
+		{
+			"parameters": {
+				"assignments": {
+					"assignments": [
+						{
+							"id": "msg-id",
+							"name": "message",
+							"value": "={{ $json.body?.message || $json.body || JSON.stringify($json) }}",
+							"type": "string"
+						},
+						{
+							"id": "ts-id",
+							"name": "timestamp",
+							"value": "={{ $now.toISO() }}",
+							"type": "string"
+						},
+						{
+							"id": "payload-id",
+							"name": "payload",
+							"value": "={{ JSON.stringify($json) }}",
+							"type": "string"
+						}
+					]
+				},
+				"options": {}
+			},
+			"id": "set-node",
+			"name": "Format Data",
+			"type": "n8n-nodes-base.set",
+			"typeVersion": 3.4,
+			"position": [460, 300]
+		},
+		{
+			"parameters": {
+				"select": "channel",
+				"channelId": {
+					"__rl": true,
+					"value": "",
+					"mode": "list"
+				},
+				"text": "=📥 New webhook received:\n\n{{ $json.message }}\n\n_Received at {{ $json.timestamp }}_",
+				"otherOptions": {
+					"includeLinkToWorkflow": false
+				}
+			},
+			"id": "slack-node",
+			"name": "Slack",
+			"type": "n8n-nodes-base.slack",
+			"typeVersion": 2.3,
+			"position": [680, 300],
+			"credentials": {
+				"slackApi": {
+					"id": "",
+					"name": "Slack account"
+				}
+			}
+		},
+		{
+			"parameters": {
+				"operation": "append",
+				"documentId": {
+					"__rl": true,
+					"value": "",
+					"mode": "list"
+				},
+				"sheetName": {
+					"__rl": true,
+					"value": "",
+					"mode": "list"
+				},
+				"columns": {
+					"mappingMode": "autoMapInputData",
+					"value": null
+				},
+				"options": {}
+			},
+			"id": "sheets-node",
+			"name": "Google Sheets",
+			"type": "n8n-nodes-base.googleSheets",
+			"typeVersion": 4.7,
+			"position": [900, 300],
+			"credentials": {
+				"googleSheetsOAuth2Api": {
+					"id": "",
+					"name": "Google Sheets account"
+				}
+			}
+		},
+		{
+			"parameters": {
+				"respondWith": "json",
+				"responseBody": "={{ { \"success\": true, \"message\": \"Data received and processed\" } }}"
+			},
+			"id": "respond-node",
+			"name": "Respond to Webhook",
+			"type": "n8n-nodes-base.respondToWebhook",
+			"typeVersion": 1.1,
+			"position": [1120, 300]
+		}
+	],
+	"connections": {
+		"Webhook": {
+			"main": [
+				[
+					{
+						"node": "Format Data",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Format Data": {
+			"main": [
+				[
+					{
+						"node": "Slack",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Slack": {
+			"main": [
+				[
+					{
+						"node": "Google Sheets",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Google Sheets": {
+			"main": [
+				[
+					{
+						"node": "Respond to Webhook",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		}
+	},
+	"pinData": {},
+	"settings": {
+		"executionOrder": "v1"
+	},
+	"staticData": null,
+	"meta": {
+		"templateCredsSetupCompleted": false
+	},
+	"active": false
+}
